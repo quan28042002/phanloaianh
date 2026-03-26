@@ -255,8 +255,8 @@ export default function App() {
               transition={{ duration: 1, ease: [0.23, 1, 0.32, 1] }}
               className="text-center mb-24 space-y-10"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-50 text-slate-500 text-[9px] font-bold tracking-[0.2em] uppercase border border-slate-200">
-                <Sparkles className="w-3 h-3 text-orange-500" /> Intelligence by Nguyen Ival
+              <div className="inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-orange-100 text-orange-800 text-sm font-black tracking-[0.3em] uppercase border-2 border-orange-300 shadow-xl shadow-orange-500/20">
+                <Sparkles className="w-5 h-5 text-orange-600 animate-pulse" /> Build by Nguyen Ival
               </div>
               <h2 className="text-7xl md:text-8xl font-black text-slate-900 tracking-tighter leading-[1]">
                 Phân loại hình ảnh. <br />

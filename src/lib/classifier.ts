@@ -21,8 +21,8 @@ export const classifyImages = async (
   const ai = getGeminiClient();
   const groups: NicheGroup[] = [];
   
-  // Xử lý theo batch để tối ưu (mỗi batch 10-15 ảnh)
-  const batchSize = 12;
+  // Xử lý theo batch để tối ưu (mỗi batch 15 ảnh để dễ nhận diện các bộ 10 ảnh)
+  const batchSize = 15;
   const totalBatches = Math.ceil(images.length / batchSize);
 
   onProgress(`Bắt đầu phân tích ${images.length} ảnh...`, 0);
@@ -43,37 +43,37 @@ export const classifyImages = async (
     }));
 
     const prompt = `
-      Bạn là một chuyên gia phân loại nội dung hình ảnh chuyên sâu, đặc biệt là các mẫu quảng cáo. 
+      Bạn là một chuyên gia phân loại hình ảnh quảng cáo (niche research) cực kỳ chính xác.
       Tôi gửi cho bạn ${batch.length} tấm ảnh.
       Nhiệm vụ của bạn:
-      1. Phân tích nội dung và đặc biệt là VĂN BẢN (TEXT), TIÊU ĐỀ (HEADLINE) trong từng ảnh.
-      2. Gom các ảnh có cùng "ngách" (niche) nội dung vào cùng một nhóm.
-      3. TIÊU CHÍ GOM NHÓM QUAN TRỌNG NHẤT:
-         - CỨ CÓ TEXT GIỐNG NHAU HOẶC TƯƠNG TỰ NHAU THÌ CHO NÓ LÀ MỘT NGÁCH.
-         - Nếu các ảnh có câu TIÊU ĐỀ CHÍNH (headline) giống nhau -> Cùng một ngách.
-         - Nếu các ảnh có nội dung văn bản, ngôn ngữ và chủ đề giống nhau -> Cùng một ngách.
-         - Tránh chia nhỏ quá mức. Nếu chúng cùng phục vụ một mục đích quảng cáo hoặc cùng một chủ đề sản phẩm/dịch vụ, hãy để chúng vào một nhóm lớn.
-      4. Đặt tên ngách bằng tiếng Việt (ngắn gọn, 2-5 từ, ví dụ: "Spa làm đẹp", "Nội thất phòng khách", "Thời trang nữ").
-      5. Trả về kết quả dưới dạng JSON mảng các nhóm.
-      
-      Quy tắc:
-      - Ưu tiên tuyệt đối sự đồng nhất về nội dung văn bản và thông điệp.
-      - Tên nhóm phải bao quát được toàn bộ các ảnh trong nhóm đó.
+      1. Phân tích sâu nội dung hình ảnh, màu sắc, phong cách thiết kế và đặc biệt là VĂN BẢN (TEXT/HEADLINE).
+      2. Gom các ảnh có cùng "ngách" (niche) vào cùng một nhóm.
+      3. QUY TẮC PHÂN CHIA QUAN TRỌNG:
+         - Một ngách thường có khoảng 10 ảnh. Bạn PHẢI chia 10 ảnh đó thành 2 nhóm (mỗi nhóm khoảng 5 ảnh).
+         - Ví dụ: Nếu thấy 10 ảnh về "Câu cá", hãy chia thành "Câu cá - Nhóm 1" (5 ảnh) và "Câu cá - Nhóm 2" (5 ảnh).
+         - TUYỆT ĐỐI KHÔNG được tạo nhóm chỉ có đúng 2 ảnh. Nếu một nhóm có 2 ảnh, hãy gộp nó vào một nhóm khác có nội dung gần nhất hoặc giữ nó trong nhóm lớn hơn.
+         - Các nhóm nên có số lượng ảnh từ 3 đến 7 ảnh là lý tưởng.
+      4. TIÊU CHÍ GOM NHÓM:
+         - Ưu tiên TEXT giống nhau hoặc cùng chủ đề thông điệp.
+         - Ưu tiên phong cách thiết kế (layout, font, màu sắc) tương đồng.
+      5. Đặt tên ngách bằng tiếng Việt chuyên nghiệp (ví dụ: "Thời trang Vintage - P1", "Đồ gia dụng thông minh").
       
       Định dạng trả về duy nhất là JSON:
       {
         "groups": [
-          { "name": "Tên ngách tiếng Việt", "indices": [0, 1, 2...] }
+          { "name": "Tên ngách", "indices": [0, 1, 2...] }
         ]
       }
-      (indices là chỉ số của ảnh trong danh sách tôi gửi, bắt đầu từ 0)
     `;
 
     try {
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ parts: [...imageParts, { text: prompt }] }],
-        config: { responseMimeType: "application/json" }
+        config: { 
+          responseMimeType: "application/json",
+          temperature: 0.2 // Giảm độ ngẫu nhiên để tăng chính xác
+        }
       });
 
       const responseText = result.text || "{}";
@@ -86,23 +86,16 @@ export const classifyImages = async (
             .filter(Boolean);
           
           if (groupImageIds.length > 0) {
-            // Kiểm tra xem có thể gộp vào nhóm cuối cùng không (nếu cùng tên)
-            const lastGroup = groups[groups.length - 1];
-            if (lastGroup && lastGroup.name === g.name) {
-              lastGroup.imageIds.push(...groupImageIds);
-            } else {
-              groups.push({
-                id: Math.random().toString(36).substr(2, 9),
-                name: g.name,
-                imageIds: groupImageIds,
-              });
-            }
+            groups.push({
+              id: Math.random().toString(36).substr(2, 9),
+              name: g.name,
+              imageIds: groupImageIds,
+            });
           }
         });
       }
     } catch (error) {
       console.error("Lỗi phân loại batch:", error);
-      // Fallback: Gom tất cả vào một nhóm lỗi nếu AI fail
       groups.push({
         id: "error-" + i,
         name: "Chưa phân loại được",
@@ -111,6 +104,67 @@ export const classifyImages = async (
     }
   }
 
+  // HẬU XỬ LÝ: Xử lý quy tắc "Không có folder 2 ảnh"
+  const finalGroups: NicheGroup[] = [];
+  const leftoverImages: string[] = [];
+
+  // Bước 1: Gom các nhóm có tên giống hệt nhau (nếu có do xử lý batch)
+  const mergedGroups: { [name: string]: string[] } = {};
+  groups.forEach(g => {
+    if (!mergedGroups[g.name]) {
+      mergedGroups[g.name] = [];
+    }
+    mergedGroups[g.name].push(...g.imageIds);
+  });
+
+  // Bước 2: Kiểm tra kích thước và xử lý nhóm có 2 ảnh
+  const groupNames = Object.keys(mergedGroups);
+  
+  groupNames.forEach((name, index) => {
+    const ids = mergedGroups[name];
+    
+    if (ids.length === 2) {
+      // Nếu nhóm có 2 ảnh, cố gắng đẩy vào nhóm trước hoặc sau
+      if (index > 0) {
+        const prevName = groupNames[index - 1];
+        mergedGroups[prevName].push(...ids);
+        delete mergedGroups[name];
+      } else if (index < groupNames.length - 1) {
+        const nextName = groupNames[index + 1];
+        mergedGroups[nextName].push(...ids);
+        delete mergedGroups[name];
+      } else {
+        // Nếu là nhóm duy nhất mà có 2 ảnh, đưa vào leftover
+        leftoverImages.push(...ids);
+        delete mergedGroups[name];
+      }
+    }
+  });
+
+  // Tạo danh sách finalGroups từ mergedGroups đã xử lý
+  Object.entries(mergedGroups).forEach(([name, ids]) => {
+    if (ids.length > 0) {
+      finalGroups.push({
+        id: Math.random().toString(36).substr(2, 9),
+        name,
+        imageIds: ids
+      });
+    }
+  });
+
+  // Xử lý nốt leftover nếu có
+  if (leftoverImages.length > 0) {
+    if (finalGroups.length > 0) {
+      finalGroups[0].imageIds.push(...leftoverImages);
+    } else {
+      finalGroups.push({
+        id: "misc",
+        name: "Nhóm tổng hợp",
+        imageIds: leftoverImages
+      });
+    }
+  }
+
   onProgress("Phân loại hoàn tất!", 100);
-  return groups;
+  return finalGroups;
 };

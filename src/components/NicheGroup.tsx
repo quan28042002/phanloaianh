@@ -119,25 +119,28 @@ export const NicheGroupCard: React.FC<NicheGroupProps> = ({
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.01 }}
-                  className="relative group/img aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 hover:border-orange-500/50 transition-all duration-700"
+                  className="relative group/img aspect-square rounded-2xl overflow-hidden bg-slate-50 border border-slate-100 hover:border-orange-500/50 transition-all duration-700 cursor-pointer"
+                  onClick={() => onPreview(img)}
                 >
                   <img 
                     src={img.data} 
                     alt={img.name}
-                    onClick={() => onPreview(img)}
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover/img:scale-110 cursor-pointer"
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover/img:scale-110"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute inset-0 bg-white/40 backdrop-blur-sm opacity-0 group-hover/img:opacity-100 transition-all duration-500 flex flex-col justify-between p-3">
+                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-all duration-500 flex flex-col justify-between p-3">
                     <div className="flex justify-end">
                       <button 
-                        onClick={() => onRemoveImage(group.id, img.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRemoveImage(group.id, img.id);
+                        }}
                         className="p-2 bg-white text-red-500 rounded-xl hover:bg-red-500 hover:text-white shadow-2xl transform translate-y-[-20px] group-hover/img:translate-y-0 transition-all duration-500 border border-slate-100"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-[8px] text-slate-900 font-bold truncate bg-white/80 px-2 py-1.5 rounded-lg border border-slate-100">
+                    <p className="text-[8px] text-white font-bold truncate bg-black/40 backdrop-blur-md px-2 py-1.5 rounded-lg border border-white/10">
                       {img.name}
                     </p>
                   </div>
